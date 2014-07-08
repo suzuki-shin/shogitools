@@ -20,5 +20,17 @@ executable shogitools
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7
+                     , network
+                     , hxt
+                     , HandsomeSoup
+                     , http-conduit
+                     , bytestring
+                     , filepath
+                     , transformers
+                     , aeson
+                     , persistent
+                     , persistent-sqlite
+                     , persistent-template
+                     , text
   -- hs-source-dirs:      
   default-language:    Haskell2010
