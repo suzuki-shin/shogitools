@@ -20,6 +20,10 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import System.Environment (getEnv)
+import Text.XML.HXT.Core
+import Text.HandsomeSoup
+import Data.ByteString.Lazy.Char8 as BL8 (unpack)
+import Data.List (nub, sort, isPrefixOf, isSuffixOf)
 
 -- baseUrl :: Url
 -- baseUrl = "https://readability.com/api/content/v1/parser"
@@ -29,17 +33,25 @@ import System.Environment (getEnv)
 -- getToken :: IO String
 -- getToken = getEnv "READABILITY_API_TOKEN"
 
-data Player = P1 | P2 deriving (Show, Eq)
-data Result = P1Lose | Draw | P1Win deriving (Show, Eq)
-type Nari = Right
-type Normal = Left
-data Piece = Either Fu | Either Kyo | Either Kei | Either Gin | Kin | Either Kaku | Either Hi | Gyoku deriving (Show, Eq)
+data Player = P1 | P2 deriving (Show, Read, Eq)
+derivePersistField "Player"
+
+data GameResult = P1Lose | Draw | P1Win deriving (Show, Read, Eq)
+derivePersistField "GameResult"
+
+-- type Nari = Right
+-- type Normal = Left
+data Piece = Fu | Kyo | Kei | Gin | Kin | Kaku | Hi | Gyoku
+           | Tokin | NariKyo | NariKei | NariGin | Uma | Ryu deriving (Show, Read, Eq)
+derivePersistField "Piece"
+
 type Pos = (Int, Int)
 data Reason = Resign            -- 投了
             | Timeup            -- 時間切れ
             | LostConnection    -- 接続切れ
             | OtherReason
-            deriving (Show)
+            deriving (Show, Read)
+derivePersistField "Reason"
 
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
@@ -47,17 +59,17 @@ KifuInfo
     url String Maybe
     player1 Text Maybe
     player2 Text Maybe
-    result Result Maybe
-    reason Reason Maybe
+--     result GameResult Maybe
+--     reason Reason Maybe
     deriving Show
 KifuDetail
     kifInfoId Int
     turn Int
-    player Player
-    piece Piece Maybe
+--     player Player
+--     piece Piece Maybe
     pos Pos Maybe
     lastPos Pos Maybe
-    reason Reason Maybe
+--     reason Reason Maybe
     second Int Maybe
     deriving Show
 |]
@@ -82,23 +94,32 @@ KifuDetail
 --   parseJSON _          = mzero
 
 
-saveKifu :: Url -> IO ()
-saveKifu entry_url = 
-  runSqlite dbname $ do
-    runMigration migrateAll
-    entries <- selectList ([ReaderApiResponseUrl ==. entry_url]::[Filter ReaderApiResponse]) [LimitTo 1]
-    if null entries
-      then do
-        b <- liftIO $ httpGetAndJson entry_url
-        insert b
-        liftIO $ putStrLn $ readerApiResponseUrl b
-      else error "already saved."
-    return ()
+-- saveKifu :: [String] -> IO ()
+-- saveKifu kifu = 
+--   runSqlite "test.db" $ do
+--     runMigration migrateAll
+--     entries <- selectList ([KifuInfo ==. url]::[Filter KifuInfo]) [LimitTo 1]
+--     if null entries
+--       then do
+--         b <- liftIO $ httpGetAndJson url
+--         insert b
+--         liftIO $ putStrLn $ kifuInfo b
+--       else error "already saved."
+--     return ()
 
 
-httpGetAndJson :: Url -> IO ReaderApiResponse
-httpGetAndJson entry_url = do
-  token <- getToken
-  a <- simpleHttp $ baseUrl ++ "?url=" ++ entry_url ++ "&token=" ++ token
-  let b = fromJust $ decode a :: ReaderApiResponse
-  return b
+-- httpGetAndJson :: Url -> IO ReaderApiResponse
+-- httpGetAndJson entry_url = do
+--   token <- getToken
+--   a <- simpleHttp $ baseUrl ++ "?url=" ++ entry_url ++ "&token=" ++ token
+--   let b = fromJust $ decode a :: ReaderApiResponse
+--   return b
+
+main = do
+--   c <- simpleHttp url
+  c <- readFile "test/sample.html"
+--   let doc = readString [withParseHTML yes, withWarnings no] $ BL8.unpack c
+  let doc = readString [withParseHTML yes, withWarnings no] c
+  links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "wrap3") >>> css "a" ! "href"
+  return $ sort $ nub $ filter (isSuffixOf ".kif") links
+
