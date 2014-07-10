@@ -17,6 +17,9 @@ import qualified Data.Conduit.Binary as CB
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (runResourceT)
 import System.IO (stdout)
+import Data.Maybe (fromJust)
+import Data.Time.Clock
+import Data.Time.Calendar
 
 baseUrl = "http://swks.sakura.ne.jp/wars/"
 kifuSearchUrl = baseUrl </> "kifusearch/"
@@ -48,16 +51,42 @@ kifUrls user = do
 kifusearchResultPage user = runResourceT $ do
 --   manager <- liftIO $ newManager def
   manager <- liftIO $ newManager conduitManagerSettings
-  req <- liftIO $ parseUrl kifuSearchUrl
+  req' <- liftIO $ parseUrl kifuSearchUrl
 --   let postRequest = urlEncodedBody [("keyword1", "soradayo"),("csrfmiddlewaretoken","ubK8vuZNfZbBsBvlIOpFrDsBcRIGHtwg")] req
   params <- liftIO $ kifusearchPageInputParams
   liftIO $ print params
-  let params2 = map (\(k,v) -> if k == "name1" then (k,user) else (k,v)) params
-      postRequest = urlEncodedBody (map (\(a,b) -> (B8.pack a, B8.pack b)) params2) req
+  let params2 = map ((\(a,b) -> (B8.pack a, B8.pack b)) . (\(k,v) -> if k == "name1" then (k,user) else (k,v))) $ params
+      req = req' { cookieJar = Just $ createCookieJar [cookie params2] }
+      postRequest = urlEncodedBody params2 req
+--   let params2 = map (\(k,v) -> if k == "name1" then (k,user) else (k,v)) params
+--       req = req' { cookieJar = Just $ createCookieJar [cookie params] }
+--       postRequest = urlEncodedBody (map (\(a,b) -> (B8.pack a, B8.pack b)) params2) req
   liftIO $ print params2
   response <- http postRequest manager
   responseBody response $$+- CB.sinkHandle stdout
 --   responseBody response $$ CB.sinkHandle stdout
+  where
+    cookie_value params = fromJust $ lookup "csrfmiddlewaretoken" params
+--     cookie :: Cookie
+    cookie params = Cookie { cookie_name = "csrftoken"
+                     , cookie_value = cookie_value params
+                     , cookie_path = "/"
+                 , cookie_expiry_time = future
+                 , cookie_domain = "swks.sakura.ne.jp"
+                 , cookie_creation_time = past
+                 , cookie_last_access_time = past
+                 , cookie_persistent = False
+                 , cookie_host_only = False
+                 , cookie_secure_only = False
+                 , cookie_http_only = False
+                 }
+
+past :: UTCTime
+past = UTCTime (ModifiedJulianDay 56200) (secondsToDiffTime 0)
+
+future :: UTCTime
+future = UTCTime (ModifiedJulianDay 562000) (secondsToDiffTime 0)
+
 
 kifusearchPageInputParams :: IO [(String,String)]
 kifusearchPageInputParams = do
