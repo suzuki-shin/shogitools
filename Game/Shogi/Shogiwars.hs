@@ -5,9 +5,11 @@ import Text.XML.HXT.Core
 import Text.HandsomeSoup
 import System.FilePath.Posix ((</>))
 import Data.List (nub, sort, isPrefixOf, isSuffixOf)
-import Network.HTTP.Conduit (simpleHttp)
+import Network.HTTP.Conduit
 import Control.Monad (forM_, mapM_)
 import Data.ByteString.Lazy.Char8 as BL8 (writeFile)
+import Data.Conduit
+import qualified Data.Conduit.Binary as CB
 
 baseUrl = "http://swks.sakura.ne.jp/wars/"
 kifuSearchUrl = baseUrl </> "kifusearch/"
@@ -32,4 +34,14 @@ kifUrls user = do
   let doc = readString [withParseHTML yes, withWarnings no] c
   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "wrap3") >>> css "a" ! "href"
   return $ map ((baseUrl ++) . dropWhile (=='.')) $ sort $ nub $ filter (isSuffixOf ".kif") links
+
+
+-- | 将棋ウォーズ棋譜検索ベータの検索結果ページを返す
+-- kifusearchResultPage :: String -> IO String
+kifusearchResultPage user = runResourceT $ do
+  manager <- liftIO $ newManager def
+  req <- liftIO $ parseUrl "http://swks.sakura.ne.jp/wars/kifusearch/"
+  let postRequest = urlEncodedBody [("keyword1", "soradayo"),("csrfmiddlewaretoken","ubK8vuZNfZbBsBvlIOpFrDsBcRIGHtwg")] req
+  response <- http postRequest manager
+  responseBody response $$ CB.sinkHandle stdout
 
