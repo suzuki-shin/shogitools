@@ -52,9 +52,8 @@ kifusearchResultPage user = runResourceT $ do
   responseBody response $$+- CB.sinkHandle stdout
 --   responseBody response $$ CB.sinkHandle stdout
 
--- kifusearchPage :: IO ()
--- kifusearchPage :: IO [(String,String)]
-kifusearchPage = do
+kifusearchPageInputParams :: IO [(String,String)]
+kifusearchPageInputParams = do
   page <- simpleHttp kifuSearchUrl
 --   let doc = readString [withParseHTML yes, withWarnings no] page
 --   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> css "input" ! "value"
@@ -63,5 +62,4 @@ kifusearchPage = do
 --   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> css "input" ! "name" &&& css "input" ! "value"
 --   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> $ css "input" ! "name" &&& css "input" ! "value"
 --   links <- runX $ doc >>> css "input" ! "name" &&& css "input" ! "value"
-  links <- runX $ doc >>> css "input" >>>  (getAttrValue "name" &&& getAttrValue "value")
-  return links
+  runX $ doc >>> css "input" >>>  (getAttrValue "name" &&& getAttrValue "value")
