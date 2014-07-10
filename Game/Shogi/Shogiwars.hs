@@ -39,9 +39,11 @@ downloadKifs user = do
 kifUrls :: String -> IO [String]
 kifUrls user = do
 --   c <- simpleHttp url
-  c <- readFile "test/sample.html"
+  kifusearchResultPage user
+  c <- readFile $ "DL" </> "result.html"
 --   let doc = readString [withParseHTML yes, withWarnings no] $ BL8.unpack c
   let doc = readString [withParseHTML yes, withWarnings no] c
+  print c
   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "wrap3") >>> css "a" ! "href"
   return $ map ((baseUrl ++) . dropWhile (=='.')) $ sort $ nub $ filter (isSuffixOf ".kif") links
 
@@ -63,7 +65,7 @@ kifusearchResultPage user = runResourceT $ do
 --       postRequest = urlEncodedBody (map (\(a,b) -> (B8.pack a, B8.pack b)) params2) req
   liftIO $ print params2
   response <- http postRequest manager
-  responseBody response $$+- CB.sinkHandle stdout
+  responseBody response $$+- CB.sinkFile $ "DL" </> "result.html"
 --   responseBody response $$ CB.sinkHandle stdout
   where
     cookie_value params = fromJust $ lookup "csrfmiddlewaretoken" params
@@ -87,15 +89,8 @@ past = UTCTime (ModifiedJulianDay 56200) (secondsToDiffTime 0)
 future :: UTCTime
 future = UTCTime (ModifiedJulianDay 562000) (secondsToDiffTime 0)
 
-
 kifusearchPageInputParams :: IO [(String,String)]
 kifusearchPageInputParams = do
   page <- simpleHttp kifuSearchUrl
---   let doc = readString [withParseHTML yes, withWarnings no] page
---   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> css "input" ! "value"
---   return $ map ((baseUrl ++) . dropWhile (=='.')) $ sort $ nub $ filter (isSuffixOf ".kif") links
   let doc = readString [withParseHTML yes, withWarnings no] $ BL8.unpack page
---   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> css "input" ! "name" &&& css "input" ! "value"
---   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> $ css "input" ! "name" &&& css "input" ! "value"
---   links <- runX $ doc >>> css "input" ! "name" &&& css "input" ! "value"
   runX $ doc >>> css "input" >>>  (getAttrValue "name" &&& getAttrValue "value")
