@@ -9,7 +9,9 @@ import System.FilePath.Posix ((</>))
 import Data.List (nub, sort, isPrefixOf, isSuffixOf)
 import Network.HTTP.Conduit
 import Control.Monad (forM_, mapM_)
-import Data.ByteString.Lazy.Char8 as BL8 (writeFile, unpack)
+import Control.Applicative ((<$>))
+import Data.ByteString.Lazy.Char8 as BL8 (writeFile, unpack, pack)
+import Data.ByteString.Char8 as B8 (writeFile, unpack, pack)
 import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import Control.Monad.IO.Class (liftIO)
@@ -47,7 +49,12 @@ kifusearchResultPage user = runResourceT $ do
 --   manager <- liftIO $ newManager def
   manager <- liftIO $ newManager conduitManagerSettings
   req <- liftIO $ parseUrl kifuSearchUrl
-  let postRequest = urlEncodedBody [("keyword1", "soradayo"),("csrfmiddlewaretoken","ubK8vuZNfZbBsBvlIOpFrDsBcRIGHtwg")] req
+--   let postRequest = urlEncodedBody [("keyword1", "soradayo"),("csrfmiddlewaretoken","ubK8vuZNfZbBsBvlIOpFrDsBcRIGHtwg")] req
+  params <- liftIO $ kifusearchPageInputParams
+  liftIO $ print params
+  let params2 = map (\(k,v) -> if k == "name1" then (k,user) else (k,v)) params
+      postRequest = urlEncodedBody (map (\(a,b) -> (B8.pack a, B8.pack b)) params2) req
+  liftIO $ print params2
   response <- http postRequest manager
   responseBody response $$+- CB.sinkHandle stdout
 --   responseBody response $$ CB.sinkHandle stdout
