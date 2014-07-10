@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Game.Shogi.Shogiwars (
 ) where
 
@@ -7,9 +9,12 @@ import System.FilePath.Posix ((</>))
 import Data.List (nub, sort, isPrefixOf, isSuffixOf)
 import Network.HTTP.Conduit
 import Control.Monad (forM_, mapM_)
-import Data.ByteString.Lazy.Char8 as BL8 (writeFile)
+import Data.ByteString.Lazy.Char8 as BL8 (writeFile, unpack)
 import Data.Conduit
 import qualified Data.Conduit.Binary as CB
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Resource (runResourceT)
+import System.IO (stdout)
 
 baseUrl = "http://swks.sakura.ne.jp/wars/"
 kifuSearchUrl = baseUrl </> "kifusearch/"
@@ -39,9 +44,24 @@ kifUrls user = do
 -- | 将棋ウォーズ棋譜検索ベータの検索結果ページを返す
 -- kifusearchResultPage :: String -> IO String
 kifusearchResultPage user = runResourceT $ do
-  manager <- liftIO $ newManager def
-  req <- liftIO $ parseUrl "http://swks.sakura.ne.jp/wars/kifusearch/"
+--   manager <- liftIO $ newManager def
+  manager <- liftIO $ newManager conduitManagerSettings
+  req <- liftIO $ parseUrl kifuSearchUrl
   let postRequest = urlEncodedBody [("keyword1", "soradayo"),("csrfmiddlewaretoken","ubK8vuZNfZbBsBvlIOpFrDsBcRIGHtwg")] req
   response <- http postRequest manager
-  responseBody response $$ CB.sinkHandle stdout
+  responseBody response $$+- CB.sinkHandle stdout
+--   responseBody response $$ CB.sinkHandle stdout
 
+-- kifusearchPage :: IO ()
+-- kifusearchPage :: IO [(String,String)]
+kifusearchPage = do
+  page <- simpleHttp kifuSearchUrl
+--   let doc = readString [withParseHTML yes, withWarnings no] page
+--   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> css "input" ! "value"
+--   return $ map ((baseUrl ++) . dropWhile (=='.')) $ sort $ nub $ filter (isSuffixOf ".kif") links
+  let doc = readString [withParseHTML yes, withWarnings no] $ BL8.unpack page
+--   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> css "input" ! "name" &&& css "input" ! "value"
+--   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "inner1") >>> $ css "input" ! "name" &&& css "input" ! "value"
+--   links <- runX $ doc >>> css "input" ! "name" &&& css "input" ! "value"
+  links <- runX $ doc >>> css "input" >>>  (getAttrValue "name" &&& getAttrValue "value")
+  return links
