@@ -1,5 +1,5 @@
 * TODO
-- [ ] DL kif list
+- [X] DL kif list
 - [ ] save kif info
 - [ ] save kif detail
 - [ ] create kif swf
