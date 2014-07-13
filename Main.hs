@@ -54,25 +54,25 @@ data Reason = Resign            -- 投了
 derivePersistField "Reason"
 
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-KifuInfo
-    url String Maybe
-    player1 Text Maybe
-    player2 Text Maybe
---     result GameResult Maybe
---     reason Reason Maybe
-    deriving Show
-KifuDetail
-    kifInfoId Int
-    turn Int
---     player Player
---     piece Piece Maybe
-    pos Pos Maybe
-    lastPos Pos Maybe
---     reason Reason Maybe
-    second Int Maybe
-    deriving Show
-|]
+-- share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+-- KifuInfo
+--     url String Maybe
+--     player1 Text Maybe
+--     player2 Text Maybe
+-- --     result GameResult Maybe
+-- --     reason Reason Maybe
+--     deriving Show
+-- KifuDetail
+--     kifInfoId Int
+--     turn Int
+-- --     player Player
+-- --     piece Piece Maybe
+--     pos Pos Maybe
+--     lastPos Pos Maybe
+-- --     reason Reason Maybe
+--     second Int Maybe
+--     deriving Show
+-- |]
 
 -- instance FromJSON ReaderApiResponse where
 --   parseJSON (Object v) = ReaderApiResponse <$>
