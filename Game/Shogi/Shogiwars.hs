@@ -14,7 +14,7 @@ module Game.Shogi.Shogiwars (
 import Data.Text (Text)
 import Text.XML.HXT.Core
 import Text.HandsomeSoup
-import System.FilePath.Posix ((</>))
+import System.FilePath.Posix ((</>), takeBaseName, takeFileName)
 import Data.List (nub, sort, isPrefixOf, isSuffixOf)
 import Network.HTTP.Conduit
 import Control.Monad (forM_, mapM_)
@@ -29,13 +29,14 @@ import System.IO (stdout)
 import Data.Maybe (fromJust)
 import Data.Time.Clock
 import Data.Time.Calendar
+import Network.URI
 
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 
-baseUrl = "http://swks.sakura.ne.jp/wars/"
-kifuSearchUrl = baseUrl </> "kifusearch/"
+baseUrl = "http://swks.sakura.ne.jp/wars"
+kifuSearchUrl = baseUrl </> "kifusearch"
 resultPageFile :: String
 resultPageFile = "DL" </> "result.html"
 
@@ -69,11 +70,13 @@ KifuDetail
 downloadKifFilesAndSaveKifuInfo :: String -> String -> IO ()
 downloadKifFilesAndSaveKifuInfo user gtype = do
   downloadResultPage user gtype
-  urls <- kifUrls resultPageFile
-  forM_ (zip urls [0..]) $ \(u, i) -> do
-    kif <- simpleHttp u
-    saveKifuInfo (KifuInfo (Just u) Nothing Nothing Nothing Nothing Nothing Nothing)
-    BL8.writeFile (user ++ show i) kif
+  urls <- kifURIs resultPageFile
+--   forM_ (zip urls [0..]) $ \(u, i) -> do
+  forM_ urls $ \u -> do
+    let url = show u
+    kif <- simpleHttp url
+    saveKifuInfo (KifuInfo (Just url) Nothing Nothing Nothing Nothing Nothing Nothing)
+    BL8.writeFile ("DL" </> takeBaseName url) kif
   return ()
 
 -- | DBにKifuInfoを保存する（すでに存在する場合はエラーを返す）
@@ -104,17 +107,21 @@ kifuInfoFromResultPage file = do
 
 
 -- | 検索結果ページのhtmlファイル名を受け取ってkifファイルの URLのリストを返す
-kifUrls :: String -> IO [String]
-kifUrls file = do
+kifURIs :: String -> IO [URI]
+kifURIs file = do
   c <- readFile file
   let doc = readString [withParseHTML yes, withWarnings no] c
   print c
   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "wrap3") >>> css "a" ! "href"
-  return $ map ((baseUrl ++) . dropWhile (=='.')) $ sort $ nub $ filter (isSuffixOf ".kif") links
+  return $ map (fromJust .
+                parseURI .
+                (baseUrl ++) .
+                dropWhile (=='.'))
+    $ sort $ nub $ filter (isSuffixOf ".kif") links
 
 
 -- 将棋ウォーズ棋譜検索ベータの検索結果ページをDLする
--- downloadResultPage :: String -> String -> IO String
+downloadResultPage :: String -> String -> IO ()
 downloadResultPage user gtype = runResourceT $ do
   manager <- liftIO $ newManager conduitManagerSettings
   req' <- liftIO $ parseUrl kifuSearchUrl
