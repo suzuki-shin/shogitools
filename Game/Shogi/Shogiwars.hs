@@ -71,7 +71,6 @@ downloadKifFilesAndSaveKifuInfo :: String -> String -> IO ()
 downloadKifFilesAndSaveKifuInfo user gtype = do
   downloadResultPage user gtype
   urls <- kifURIs resultPageFile
---   forM_ (zip urls [0..]) $ \(u, i) -> do
   forM_ urls $ \u -> do
     let url = show u
     kif <- simpleHttp url

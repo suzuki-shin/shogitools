@@ -10,3 +10,4 @@ cabal-dev
 cabal.sandbox.config
 cabal.config
 /DL/result.html
+/test.db
