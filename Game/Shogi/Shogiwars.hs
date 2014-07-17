@@ -9,6 +9,7 @@
 {-# LANGUAGE EmptyDataDecls    #-}
 
 module Game.Shogi.Shogiwars (
+  downloadKifFilesAndSaveKifuInfo
 ) where
 
 import Data.Text (Text)
@@ -35,7 +36,9 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 
+baseUrl :: String
 baseUrl = "http://swks.sakura.ne.jp/wars"
+kifuSearchUrl :: String
 kifuSearchUrl = baseUrl </> "kifusearch"
 resultPageFile :: String
 resultPageFile = "DL" </> "result.html"
@@ -75,7 +78,7 @@ downloadKifFilesAndSaveKifuInfo user gtype = do
     let url = show u
     kif <- simpleHttp url
     saveKifuInfo (KifuInfo (Just url) Nothing Nothing Nothing Nothing Nothing Nothing)
-    BL8.writeFile ("DL" </> takeBaseName url) kif
+    BL8.writeFile ("DL" </> takeFileName url) kif
   return ()
 
 -- | DBにKifuInfoを保存する（すでに存在する場合はエラーを返す）
