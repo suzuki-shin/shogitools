@@ -1,5 +1,8 @@
+<!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 </head>
 <body>
   <script type="text/javascript" src="jquery-2.1.1.min.js"></script>
@@ -7,12 +10,14 @@
   <script type="text/javascript">
    $(function(){
 	 var lis = $.map(kifulist, function(x){
-	   return '<li><a target="_blank" href="http://shogi.org/kifu/play?https://dl.dropboxusercontent.com/u/2544479/shogi/kifu/' + x + '">' + x + '</a></li>';
+	   return '<a class="list-group-item" target="_blank" href="http://shogi.org/kifu/play?https://dl.dropboxusercontent.com/u/2544479/shogi/kifu/' + x + '">' + x + '</a>';
 	 });
 	 $('#kifulinks').append(lis.join(''));
    });
   </script>
-  <h1>棋譜リスト</h1>
-  <ul id="kifulinks"></ul>
+  <div class="container">
+	<h1>棋譜リスト</h1>
+	<div id="kifulinks" class="list-group"></div>
+  </div>
 </body>
 </html>
