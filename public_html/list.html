@@ -7,12 +7,12 @@
   <script type="text/javascript">
    $(function(){
 	 var lis = $.map(kifulist, function(x){
-	   return '<li><a href="http://shogi.org/kifu/play?https://dl.dropboxusercontent.com/u/2544479/shogi/kifu/' + x + '">' + x + '</a></li>';
+	   return '<li><a target="_blank" href="http://shogi.org/kifu/play?https://dl.dropboxusercontent.com/u/2544479/shogi/kifu/' + x + '">' + x + '</a></li>';
 	 });
 	 $('#kifulinks').append(lis.join(''));
    });
   </script>
-
+  <h1>棋譜リスト</h1>
   <ul id="kifulinks"></ul>
 </body>
 </html>

@@ -13,6 +13,8 @@ module Game.Shogi.Shogiwars (
 ) where
 
 import Data.Text (Text)
+import Data.Text as T (pack)
+import Data.Text.IO as T (writeFile)
 import Text.XML.HXT.Core
 import Text.HandsomeSoup
 import System.FilePath.Posix ((</>), takeBaseName, takeFileName)
@@ -31,6 +33,7 @@ import Data.Maybe (fromJust)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Network.URI
+import System.Directory (getDirectoryContents)
 
 import Database.Persist
 import Database.Persist.Sqlite
@@ -40,9 +43,12 @@ baseUrl :: String
 baseUrl = "http://swks.sakura.ne.jp/wars"
 kifuSearchUrl :: String
 kifuSearchUrl = baseUrl </> "kifusearch"
-resultPageFile :: String
-resultPageFile = "DL" </> "result.html"
-
+downloadDir :: FilePath
+downloadDir = "DL"
+htmlDir :: FilePath
+htmlDir = "public_html"
+resultPageFile :: FilePath
+resultPageFile = downloadDir </> "result.html"
 
 type Pos = (Int, Int)
 
@@ -165,3 +171,10 @@ kifusearchPageInputParams = do
   page <- simpleHttp kifuSearchUrl
   let doc = readString [withParseHTML yes, withWarnings no] $ BL8.unpack page
   runX $ doc >>> css "input" >>>  (getAttrValue "name" &&& getAttrValue "value")
+
+
+-- | 棋譜リストjsを作る
+makeKifuListJs :: FilePath -> FilePath -> IO ()
+makeKifuListJs outputPath kifuDir = do
+  kifulist <- filter (`notElem` [".",".."]) <$> getDirectoryContents kifuDir
+  T.writeFile outputPath $ T.pack $ "kifulist = " ++ show kifulist
