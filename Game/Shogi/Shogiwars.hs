@@ -9,7 +9,8 @@
 {-# LANGUAGE EmptyDataDecls    #-}
 
 module Game.Shogi.Shogiwars (
-  downloadKifFilesAndSaveKifuInfo
+   downloadKifFilesAndSaveKifuInfo
+ , makeKifuListJs
 ) where
 
 import Data.Text (Text)
@@ -33,8 +34,9 @@ import Data.Maybe (fromJust)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Network.URI
-import System.Directory (getDirectoryContents)
-
+import System.Directory (getDirectoryContents, getCurrentDirectory)
+import System.Process (readProcess)
+import Control.Exception as E
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
@@ -49,6 +51,8 @@ htmlDir :: FilePath
 htmlDir = "public_html"
 resultPageFile :: FilePath
 resultPageFile = downloadDir </> "result.html"
+dbname :: String
+dbname = "test.db"
 
 type Pos = (Int, Int)
 
@@ -83,9 +87,12 @@ downloadKifFilesAndSaveKifuInfo user gtype = do
   forM_ urls $ \u -> do
     let url = show u
     kif <- simpleHttp url
-    saveKifuInfo (KifuInfo (Just url) Nothing Nothing Nothing Nothing Nothing Nothing)
+    saveKifuInfo (KifuInfo (Just url) Nothing Nothing Nothing Nothing Nothing Nothing) `catch` ignore
     BL8.writeFile ("DL" </> takeFileName url) kif
   return ()
+  where
+    ignore :: SomeException -> IO ()
+    ignore _ = return ()
 
 -- | DBにKifuInfoを保存する（すでに存在する場合はエラーを返す）
 saveKifuInfo :: KifuInfo -> IO ()
@@ -101,7 +108,7 @@ saveKifuInfo kInfo = runSqlite "test.db" $ do
 
 
 
--- | 検索結果ページのhtmlファイルを受け取ってKifuInfoのリストを返す
+-- | 検索結果ページのhtmlファイルを受け取ってKifuInfoのリストを返す(未完成）
 kifuInfoFromResultPage :: FilePath -> IO [String]
 kifuInfoFromResultPage file = do
   let wrap3 = readDocument [withParseHTML yes, withWarnings no] file //> css "div" >>> hasAttrValue "id" (== "wrap3")
@@ -119,14 +126,13 @@ kifURIs :: String -> IO [URI]
 kifURIs file = do
   c <- readFile file
   let doc = readString [withParseHTML yes, withWarnings no] c
-  print c
   links <- runX $ doc //> css "div" >>> hasAttrValue "id" (== "wrap3") >>> css "a" ! "href"
-  return $ map (fromJust .
-                parseURI .
-                (baseUrl ++) .
-                dropWhile (=='.'))
-    $ sort $ nub $ filter (isSuffixOf ".kif") links
-
+  return $ linksToURIs links
+  where
+    filepathToURI :: String -> URI
+    filepathToURI = fromJust . parseURI . (baseUrl ++) . dropWhile (=='.')
+    linksToURIs :: [String] -> [URI]
+    linksToURIs = (map filepathToURI) . sort . nub . (filter (isSuffixOf ".kif"))
 
 -- 将棋ウォーズ棋譜検索ベータの検索結果ページをDLする
 downloadResultPage :: String -> String -> IO ()
@@ -178,3 +184,15 @@ makeKifuListJs :: FilePath -> FilePath -> IO ()
 makeKifuListJs outputPath kifuDir = do
   kifulist <- filter (`notElem` [".",".."]) <$> getDirectoryContents kifuDir
   T.writeFile outputPath $ T.pack $ "kifulist = " ++ show kifulist
+
+sample user gtype = do
+--   downloadKifFilesAndSaveKifuInfo user gtype -- 棋譜をダウンロードして、kifInfoをDBに保存
+  s <- copyToDropbox  -- 保存した棋譜をDropboxへコピー
+  print s
+  makeKifuListJs kifulistJsPath dropboxKifuPath
+  where
+    dropboxKifuPath = "/Users/sshin/Dropbox/Public/shogi/kifu/"
+    kifulistJsPath = htmlDir </> "kifulist.js"
+    copyToDropbox = do
+      currentDir <- getCurrentDirectory
+      readProcess "/bin/cp" [currentDir </> downloadDir </> "*.kif", dropboxKifuPath] []
