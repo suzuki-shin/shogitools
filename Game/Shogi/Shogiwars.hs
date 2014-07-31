@@ -185,14 +185,16 @@ makeKifuListJs outputPath kifuDir = do
   kifulist <- filter (`notElem` [".",".."]) <$> getDirectoryContents kifuDir
   T.writeFile outputPath $ T.pack $ "kifulist = " ++ show kifulist
 
+copyKif :: FilePath -> FilePath -> IO ()
+copyKif from to = do
+  kifs <- filter (isSuffixOf ".kif") <$> getDirectoryContents from
+  mapM_ (\file -> readProcess "cp" [from </> file, to] []) kifs
+
 sample user gtype = do
---   downloadKifFilesAndSaveKifuInfo user gtype -- 棋譜をダウンロードして、kifInfoをDBに保存
-  s <- copyToDropbox  -- 保存した棋譜をDropboxへコピー
+  downloadKifFilesAndSaveKifuInfo user gtype -- 棋譜をダウンロードして、kifInfoをDBに保存
+  s <- copyKif downloadDir dropboxKifuPath  -- 保存した棋譜をDropboxへコピー
   print s
-  makeKifuListJs kifulistJsPath dropboxKifuPath
+  makeKifuListJs kifulistJsPath dropboxKifuPath -- kifulist.jsを作成する
   where
     dropboxKifuPath = "/Users/sshin/Dropbox/Public/shogi/kifu/"
     kifulistJsPath = htmlDir </> "kifulist.js"
-    copyToDropbox = do
-      currentDir <- getCurrentDirectory
-      readProcess "/bin/cp" [currentDir </> downloadDir </> "*.kif", dropboxKifuPath] []

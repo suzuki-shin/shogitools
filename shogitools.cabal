@@ -37,7 +37,7 @@ executable shogitools
                      , conduit-extra
                      , resourcet
                      , time
-                     , shelly
+                     , process
                      , directory
   -- hs-source-dirs:      
   default-language:    Haskell2010
