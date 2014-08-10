@@ -1,4 +1,4 @@
-{-# OPTIONS -Wall -fno-warn-unused-do-bind #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Parser where
 
@@ -8,18 +8,37 @@ import Text.ParserCombinators.Parsec.Language
 import Text.Parsec.String
 import Data.List
 import Control.Applicative ((<*>), (<$>))
--- import Data.Char
+import Data.Char (digitToInt)
+import Codec.Binary.UTF8.String (decodeString)
+import Codec.Text.IConv
+import qualified Data.ByteString.Lazy.Char8 as BS
 -- import Control.Monad
 
 pieces :: [String]
-pieces = ["歩","香","桂","銀","金","角","飛","玉","と","成香","成桂","成銀","馬","竜"]
+pieces = ["歩","香","桂","銀","金","角","飛","玉","と","成香","成桂","成銀","馬","竜","龍"]
+
+-- 板上の位置
+data Pos = Pos {col :: Int, row ::  Int} | Dou | Uchi deriving (Eq)
+
+instance Show Pos where
+  show (Pos c r) = show c ++ show r
+  show Dou = "同"
+  show Uchi = "打"
 
 data Action = Action {
     getPiece :: String
-  , getFromPos :: String
-  , getToPos :: String
+  , getFromPos :: Pos
+  , getToPos :: Pos
   , getNari :: Bool
-  } | Tohryo deriving (Eq, Show)
+  } | Tohryo deriving (Eq)
+
+instance Show Action where
+  show (Action p f t n) = show t ++ p ++ if n then "成" else "" ++ "(" ++ show f ++ ")"
+
+data Kif = Kif {
+    getHeader :: [String]
+  , getKifLines :: [KifLine]
+  } deriving (Show)
 
 data KifLine = KifLine {
     getNumber :: String
@@ -27,69 +46,58 @@ data KifLine = KifLine {
   , getTime :: Maybe String
   } deriving (Eq, Show)
 
--- -- "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" - - \"%{X-DCMGUID}i\" \"%{X-Up-Subno}i\" \"%{x-jphone-uid}i\" \"%{MOAPPS_CARRIER}e\" \"%{sp_uk}C\" \"%{sp_sess}C\" \"%Tsec\""
--- data LogLine = LogLine {
---     getIP :: String
---   , getIdent :: String
---   , getUser :: String
---   , getDate :: String
---   , getReq :: String
---   , getStatus :: String
---   , getBytes :: String
---   , getRef :: String
---   , getUA :: String
---   , getDCMGUID :: String
---   , getUpSubno :: String
---   , getJphoneUid :: String
---   , getMoappsCarrier :: String
---   , getSpUk :: String
---   -- , getSpSecc :: String
---   -- , getSec :: String
---   } deriving (Ord, Eq, Show)
-
--- plainValue :: Parser String
--- plainValue = many1 (noneOf " \n")
-
--- bracketedValue :: Parser String
--- bracketedValue = do
---   char '['
---   content <- many (noneOf "]")
---   char ']'
---   return content
-
--- quotedValue :: Parser String
--- quotedValue = do
---   char '"'
---   content <- many (noneOf "\"")
---   char '"'
---   return content
-
 lexer  = P.makeTokenParser emptyDef
 parens = P.parens lexer
 
+toInt :: String -> Int
+toInt "１" = 1
+toInt "２" = 2
+toInt "３" = 3
+toInt "４" = 4
+toInt "５" = 5
+toInt "６" = 6
+toInt "７" = 7
+toInt "８" = 8
+toInt "９" = 9
+toInt "一" = 1
+toInt "二" = 2
+toInt "三" = 3
+toInt "四" = 4
+toInt "五" = 5
+toInt "六" = 6
+toInt "七" = 7
+toInt "八" = 8
+toInt "九" = 9
+toInt s = read s
 
-col :: Parser String
-col = many1 $ oneOf "１２３４５６７８９"
-
-row :: Parser String
-row = many1 $ oneOf "一二三四五六七八九"
 
 -- 駒
 piece :: Parser String
 piece = foldl1' (<|>)  $ map string pieces
 
-toPos :: Parser String
-toPos = do
-  c <- col
-  r <- row
-  return $ c ++ r
+toPos :: Parser Pos
+toPos = Pos <$> col <*> row
+  where
+    col :: Parser Int
+    col = do
+      c <- many1 $ oneOf "１２３４５６７８９"
+      return $ toInt c
+    row :: Parser Int
+    row = do
+      r <- many1 $ oneOf "一二三四五六七八九"
+      return $ toInt r
 
 
-fromPos :: Parser String
-fromPos = parens $ many1 $ oneOf "123456789"
+fromPos :: Parser Pos
+fromPos = do
+  c:[r] <- parens $ many1 $ oneOf "123456789"
+  return $ Pos (digitToInt c) (digitToInt r)
 
-dou :: Parser String
-dou = string "同　"
+dou :: Parser Pos
+dou = string "同　" >> return Dou
+
+uchi :: Parser Pos
+uchi = string "打" >> return Uchi
 
 -- tohryo 投了 みたいなやつをparseする
 tohryo :: Parser Action
@@ -102,20 +110,58 @@ action = do
   toPos_ <- toPos <|> dou
   p <- piece
   nari <- string "成" <|> string ""
-  fromPos_ <- fromPos
-  return $ Action toPos_ p fromPos_ (nari == "成")
+  fromPos_ <- fromPos <|> uchi
+  return $ Action p fromPos_ toPos_ (nari == "成")
 
 kifLine :: Parser KifLine
 kifLine = do
   number <- many1 digit
   space
   a <- action <|> tohryo
---   space
-  time <- many (noneOf "\n") <|> string ""
-  return $ KifLine number a (if time == "" then Nothing else Just time)
+  x <- try (do
+          time <- many (noneOf "\n") <|> string ""
+          return time
+      )
+  return $ KifLine number a (if x == "" then Nothing else Just x)
 
 kifLines :: Parser [KifLine]
 kifLines = endBy1 kifLine eol
+
+headers :: Parser [String]
+headers = endBy header eol
+
+kif :: Parser Kif
+kif = do
+  hs <- headers <|> return []
+  kls <- kifLines
+  return $ Kif hs kls
+
+
+header :: Parser String
+header =    startDatetime
+         <|> kisen
+         <|> time
+         <|> teaiwari
+         <|> sente
+         <|> gote
+         <|> comment
+
+header_ :: String -> Parser String
+-- header_ h = return <$> string h <*> many (noneOf "\n")
+header_ h = do
+  string h
+  b <- many (noneOf "\n")
+  return $ h ++ b
+
+startDatetime, kisen, time, teaiwari, sente, gote, comment :: Parser String
+startDatetime = header_ "開始日時："
+kisen = header_ "棋戦："
+time = header_ "持ち時間："
+teaiwari = header_ "手合割："
+sente = header_ "先手："
+gote = header_ "後手："
+-- comment = try (string "手数----指手---------消費時間--")
+comment = many (noneOf "1234567890\n")
 
 eol =     try (string "\n\r")
       <|> try (string "\r\n")
@@ -124,11 +170,34 @@ eol =     try (string "\n\r")
 
 main :: IO ()
 main = do
-  let c = "85 ５八玉(68)   ( 00:04/00:04:38)"
-  case parse kifLine "(kif)" c of
+  c <- getContents
+  hoge c
+
+main1 = hoge "85 ５八玉(68)   ( 00:04/00:04:38)"
+main2 = hoge "8 同　歩(23)   ( 00:01/00:00:11)"
+main3 = hoge "25 ７七銀打   ( 00:02/00:00:16)"
+main4 = hoge "93 同　歩成(24)   ( 00:01/00:02:00)"
+main5 = hoge "65 投了"
+
+hoge c1 = do
+  case parse kifLine "(kifLine)" c1 of
     Left err -> print err
     Right res -> print res
 
+fuga s = do
+  case parse kif "(kif)" s of
+    Left err -> error $ show err
+    Right res -> res
+
+-- convertEncoding :: EncodingName -> EncodingName -> BS.ByteString -> BS.ByteString
+convertEncoding fromEnc toEnc = decodeString . BS.unpack . convert fromEnc toEnc . BS.pack
+-- convertEncoding fromEnc toEnc = decodeString . convert fromEnc toEnc
+
+readAndConvert :: FilePath -> IO Kif
+readAndConvert filePath = do
+  sjisbs <- BS.readFile filePath
+  let utf8bs = convert "SJIS" "UTF-8" sjisbs
+  return $ fuga $ decodeString $ BS.unpack utf8bs
 
 {--
 開始日時：2014/06/30 10:05:29
@@ -289,5 +358,4 @@ main = do
 149 ９八玉(97)   ( 00:06/00:04:48)
 150 ９九金(89)   ( 00:06/00:09:09)
 151 投了
-
 --}
