@@ -15,7 +15,8 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 -- import Control.Monad
 
 pieces :: [String]
-pieces = ["歩","香","桂","銀","金","角","飛","玉","と","成香","成桂","成銀","馬","竜","龍"]
+-- pieces = ["歩","香","桂","銀","金","角","飛","玉","と","成香","成桂","成銀","馬","竜","龍"]
+pieces = ["歩","香","桂","銀","金","角","飛","玉","と","馬","竜","龍"]
 
 -- 板上の位置
 data Pos = Pos {col :: Int, row ::  Int} | Dou | Uchi deriving (Eq)
@@ -36,23 +37,19 @@ instance Show Action where
   show (Action p f t n) = show t ++ p ++ if n then "成" else "" ++ "(" ++ show f ++ ")"
 
 data Kif = Kif {
-    getHeaderLines :: [String]
+    getHeaders :: [String]
   , getKifLines :: [KifLine]
   } deriving (Show)
 
-data KifLine = KifLine {
-    getNumber :: String
-  , getAction :: Action
-  , getTime :: Maybe String
-  }
-  | StartDateLine
-  | KisenLine
-  | TimeLine
-  | TeaiwariLine
-  | SenteLine
-  | GoteLine
-  | CommentLine
-  deriving (Show, Eq)
+
+data KifLine = KifLine { getNumber :: String , getAction :: Action , getTime :: Maybe String } deriving (Show, Eq)
+type StartDateLine = String
+type KisenLine = String
+type TimeLine = String
+type TeaiwariLine = String
+type SenteLine = String
+type GoteLine = String
+type CommentLine = String
 
 lexer  = P.makeTokenParser emptyDef
 parens = P.parens lexer
@@ -81,7 +78,10 @@ toInt s = read s
 
 -- 駒
 piece :: Parser String
-piece = foldl1' (<|>)  $ map string pieces
+piece = do
+  nari <- string "成" <|> string ""
+  p <- foldl1' (<|>)  $ map string pieces
+  return $ nari ++ p
 
 toPos :: Parser Pos
 toPos = Pos <$> col <*> row
@@ -131,18 +131,6 @@ kifLine = do
           return time
       )
   return $ KifLine number a (if x == "" then Nothing else Just x)
-  <|>
-  (header_ "開始日時：" >> return StartDateLine)
-  <|>
-  (header_ "棋戦：" >> return KisenLine)
-  <|>
-  (header_ "持ち時間：" >> return TimeLine)
-  <|>
-  (header_ "先手：" >> return SenteLine)
-  <|>
-  (header_ "後手：" >> return GoteLine)
-  <|>
-  (many (noneOf "1234567890\n") >> return CommentLine)
 
 kifLines :: Parser [KifLine]
 kifLines = endBy1 kifLine eol
@@ -152,60 +140,51 @@ headers = endBy header eol
 
 kif :: Parser Kif
 kif = do
-  hs <- headers <|> return []
-  kls <- kifLines
+  hs <- try (headers)
+  kls <- try (kifLines)
   return $ Kif hs kls
 
-
 header :: Parser String
-header =    startDatetime
-         <|> kisen
-         <|> time
-         <|> teaiwari
-         <|> sente
-         <|> gote
-         <|> comment
+header = (header_ "開始日時：")
+         <|>
+         (header_ "棋戦：")
+         <|>
+         (header_ "持ち時間：")
+         <|>
+         (header_ "先手：")
+         <|>
+         (header_ "後手：")
+         <|>
+         (many (noneOf "1234567890\n") >>= return)
 
 header_ :: String -> Parser String
--- header_ h = return <$> string h <*> many (noneOf "\n")
 header_ h = do
   string h
   b <- many (noneOf "\n")
   return $ h ++ b
-
-startDatetime, kisen, time, teaiwari, sente, gote, comment :: Parser String
-startDatetime = header_ "開始日時："
-kisen = header_ "棋戦："
-time = header_ "持ち時間："
-teaiwari = header_ "："
--- teaiwari = header_ "手合割："
-sente = header_ "先手："
-gote = header_ "後手："
--- comment = try (string "手数----指手---------消費時間--")
-comment = many (noneOf "1234567890\n")
 
 eol =     try (string "\n\r")
       <|> try (string "\r\n")
       <|> string "\n"
       <|> string "\r"
 
-main :: IO ()
-main = do
-  c <- getContents
-  hoge c
+-- main :: IO ()
+-- main = do
+--   c <- getContents
+--   hoge c
 
-main1 = hoge "85 ５八玉(68)   ( 00:04/00:04:38)"
-main2 = hoge "8 同　歩(23)   ( 00:01/00:00:11)"
-main3 = hoge "25 ７七銀打   ( 00:02/00:00:16)"
-main4 = hoge "93 同　歩成(24)   ( 00:01/00:02:00)"
-main5 = hoge "65 投了"
+-- main1 = hoge "85 ５八玉(68)   ( 00:04/00:04:38)"
+-- main2 = hoge "8 同　歩(23)   ( 00:01/00:00:11)"
+-- main3 = hoge "25 ７七銀打   ( 00:02/00:00:16)"
+-- main4 = hoge "93 同　歩成(24)   ( 00:01/00:02:00)"
+-- main5 = hoge "65 投了"
 
-hoge c1 = do
-  case parse kifLine "(kifLine)" c1 of
-    Left err -> print err
-    Right res -> print res
+-- hoge c1 = do
+--   case parse kifLine "(kifLine)" c1 of
+--     Left err -> print err
+--     Right res -> print res
 
-fuga s = do
+parseKif s = do
   case parse kif "(kif)" s of
     Left err -> error $ show err
     Right res -> res
@@ -218,7 +197,7 @@ readAndConvert :: FilePath -> IO Kif
 readAndConvert filePath = do
   sjisbs <- BS.readFile filePath
   let utf8bs = convert "SJIS" "UTF-8" sjisbs
-  return $ fuga $ decodeString $ BS.unpack utf8bs
+  return $ parseKif $ decodeString $ BS.unpack utf8bs
 
 {--
 開始日時：2014/06/30 10:05:29
