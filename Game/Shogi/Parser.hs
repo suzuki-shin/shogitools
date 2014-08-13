@@ -36,7 +36,7 @@ instance Show Action where
   show (Action p f t n) = show t ++ p ++ if n then "成" else "" ++ "(" ++ show f ++ ")"
 
 data Kif = Kif {
-    getHeader :: [String]
+    getHeaderLines :: [String]
   , getKifLines :: [KifLine]
   } deriving (Show)
 
@@ -44,7 +44,15 @@ data KifLine = KifLine {
     getNumber :: String
   , getAction :: Action
   , getTime :: Maybe String
-  } deriving (Eq, Show)
+  }
+  | StartDateLine
+  | KisenLine
+  | TimeLine
+  | TeaiwariLine
+  | SenteLine
+  | GoteLine
+  | CommentLine
+  deriving (Show, Eq)
 
 lexer  = P.makeTokenParser emptyDef
 parens = P.parens lexer
@@ -123,6 +131,18 @@ kifLine = do
           return time
       )
   return $ KifLine number a (if x == "" then Nothing else Just x)
+  <|>
+  (header_ "開始日時：" >> return StartDateLine)
+  <|>
+  (header_ "棋戦：" >> return KisenLine)
+  <|>
+  (header_ "持ち時間：" >> return TimeLine)
+  <|>
+  (header_ "先手：" >> return SenteLine)
+  <|>
+  (header_ "後手：" >> return GoteLine)
+  <|>
+  (many (noneOf "1234567890\n") >> return CommentLine)
 
 kifLines :: Parser [KifLine]
 kifLines = endBy1 kifLine eol
@@ -157,7 +177,8 @@ startDatetime, kisen, time, teaiwari, sente, gote, comment :: Parser String
 startDatetime = header_ "開始日時："
 kisen = header_ "棋戦："
 time = header_ "持ち時間："
-teaiwari = header_ "手合割："
+teaiwari = header_ "："
+-- teaiwari = header_ "手合割："
 sente = header_ "先手："
 gote = header_ "後手："
 -- comment = try (string "手数----指手---------消費時間--")
