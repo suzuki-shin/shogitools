@@ -12,11 +12,14 @@ module Game.Shogi.Shogiwars (
    downloadKifFilesAndSaveKifuInfo
  , makeKifuListJs
  , updateKifulistJs
+ , readAndConvertKif
 ) where
 
 import Data.Text (Text)
 import Data.Text as T (pack)
 import Data.Text.IO as T (writeFile)
+import Codec.Binary.UTF8.String (decodeString)
+import Codec.Text.IConv (convert)
 import Text.XML.HXT.Core
 import Text.HandsomeSoup
 import System.FilePath.Posix ((</>), takeBaseName, takeFileName)
@@ -24,7 +27,7 @@ import Data.List (nub, sort, isPrefixOf, isSuffixOf)
 import Network.HTTP.Conduit
 import Control.Monad (forM_, mapM_)
 import Control.Applicative ((<$>))
-import Data.ByteString.Lazy.Char8 as BL8 (writeFile, unpack, pack)
+import qualified Data.ByteString.Lazy.Char8 as BL8 (writeFile, unpack, pack, readFile)
 import Data.ByteString.Char8 as B8 (writeFile, unpack, pack, ByteString)
 import Data.Conduit
 import qualified Data.Conduit.Binary as CB
@@ -41,6 +44,7 @@ import Control.Exception as E
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
+import qualified Game.Shogi.Parser as P
 
 baseUrl :: String
 baseUrl = "http://swks.sakura.ne.jp/wars"
@@ -203,3 +207,13 @@ updateKifulistJs user gtype = do
   where
     dropboxKifuPath = "/Users/sshin/Dropbox/Public/shogi/kifu/"
     kifulistJsPath = htmlDir </> "kifulist.js"
+
+
+-- convertEncoding :: EncodingName -> EncodingName -> BS.ByteString -> BS.ByteString
+convertEncoding fromEnc toEnc = decodeString . BL8.unpack . convert fromEnc toEnc . BL8.pack
+
+readAndConvertKif :: FilePath -> IO P.Kif
+readAndConvertKif filePath = do
+  sjisbs <- BL8.readFile filePath
+  let utf8bs = convert "SJIS" "UTF-8" sjisbs
+  return $ P.parseKif $ decodeString $ BL8.unpack utf8bs
