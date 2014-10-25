@@ -1,9 +1,9 @@
 module Game.Shogi.ParserSpec where
 
 import Test.Hspec
-import Test.QuickCheck
-import Control.Exception (evaluate)
-import Game.Shogi.Parser
+-- import Test.QuickCheck
+-- import Control.Exception (evaluate)
+-- import Game.Shogi.Parser
 
 spec :: Spec
 spec = do

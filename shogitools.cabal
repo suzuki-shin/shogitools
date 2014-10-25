@@ -45,17 +45,38 @@ executable shogitools
   -- hs-source-dirs:      
   default-language:    Haskell2010
 
--- test-suite spec
---   type:                 exitcode-stdio-1.0
---   default-language:     Haskell2010
---   other-modules:        Game.Shogi.ParserSpec
---   hs-source-dirs:       test
---   ghc-options:          -Wall
---   main-is:              Spec.hs
---   build-depends:        base
---                       , hspec >= 1.3
---                       , QuickCheck
---                       , shogitools
+test-suite spec
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  other-modules:       Game.Shogi.ParserSpec
+  hs-source-dirs:      test
+  ghc-options:         -Wall
+  main-is:             Spec.hs
+  build-depends:       base
+                     , hspec >= 1.3
+                     , QuickCheck
+                     , network
+                     , hxt
+                     , HandsomeSoup
+                     , http-conduit
+                     , bytestring
+                     , filepath
+                     , transformers
+                     , aeson
+                     , persistent
+                     , persistent-sqlite
+                     , persistent-template
+                     , text
+                     , conduit
+                     , conduit-combinators
+                     , conduit-extra
+                     , resourcet
+                     , time
+                     , process
+                     , directory
+                     , parsec
+                     , utf8-string
+                     , iconv
 
 Test-Suite doctest
   Type:                 exitcode-stdio-1.0
