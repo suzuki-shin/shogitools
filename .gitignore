@@ -9,6 +9,11 @@ cabal-dev
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.config
+.DS_Store
 /DL/
 /test.db
 /public_html/kifulist.js
+/public_html/bootstrap.min.css
+/public_html/jquery-2.1.1.min.js
+/public_html/bootstrap.min.js
+/public_html/select2-3.5.1/

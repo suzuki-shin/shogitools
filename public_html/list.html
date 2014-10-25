@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+  <!-- <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css"> -->
+  <link rel="stylesheet" href="bootstrap.min.css">
 </head>
 <body>
   <script type="text/javascript" src="jquery-2.1.1.min.js"></script>
   <script type="text/javascript" src="kifulist.js"></script>
+
+  <!-- <link href="select2-3.5.1/select2.css" rel="stylesheet">
+  <script src="bootstrap.min.js"></script>
+  <script src="select2-3.5.1/select2.min.js"></script> -->
+
   <script type="text/javascript">
    $(function(){
 	 var lis = $.map(kifulist, function(x){
@@ -15,9 +22,12 @@
 	 $('#kifulinks').append(lis.join(''));
    });
   </script>
+
   <div class="container">
 	<h1>棋譜リスト</h1>
 	<div id="kifulinks" class="list-group"></div>
   </div>
+
+
 </body>
 </html>
